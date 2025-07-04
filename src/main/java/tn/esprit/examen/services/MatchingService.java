@@ -7,5 +7,5 @@ import org.springframework.stereotype.Service;
 @Service
 @AllArgsConstructor
 @Slf4j
-public class MatchingService {
+public class MatchingService implements IMatchingService {
 }

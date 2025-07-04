@@ -20,9 +20,14 @@ public class Application {
     @GeneratedValue
     private Long applicationId;
     private LocalDateTime appliedAt;
-    private String cvUrl;
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;
+    private String firstName;
+    private String lastName;
+    private String email;
+    private String phone;
+    @Column(length = 2000)
+    private String coverLetter;
 
     @ManyToOne
     private Candidate candidate;

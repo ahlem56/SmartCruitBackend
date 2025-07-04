@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Chat Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<h2>Chat Test</h2>
+<input id="senderId" placeholder="Sender ID" />
+<input id="recipientId" placeholder="Recipient ID" />
+<input id="message" placeholder="Message" />
+<button onclick="sendMessage()">Send</button>
+<ul id="messages"></ul>
+
+<script>
+    let socket = new SockJS("http://localhost:8089/SmartCruit/ws-chat"); // ✅ not native WS
+    let stompClient = Stomp.over(socket);
+
+    stompClient.debug = console.log; // ✅ Add this line for full logs
+
+    stompClient.connect({}, () => {
+        console.log("Connected");
+
+        stompClient.subscribe("/topic/messages", (msg) => {
+            let body = JSON.parse(msg.body);
+            let item = document.createElement("li");
+            item.textContent = `[${body.timestamp}] ${body.senderId} -> ${body.recipientId}: ${body.content}`;
+            document.getElementById("messages").appendChild(item);
+        });
+    });
+
+    function sendMessage() {
+        const msg = {
+            senderId: document.getElementById("senderId").value,
+            recipientId: document.getElementById("recipientId").value,
+            content: document.getElementById("message").value
+        };
+        stompClient.send("/app/chat.send", {}, JSON.stringify(msg));
+    }
+</script>
+</body>
+</html>

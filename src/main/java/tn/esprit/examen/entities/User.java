@@ -21,6 +21,7 @@ public abstract class User {
     private Long userId;
     private String fullName;
     private String phoneNumber;
+    @Column(name = "profile_picture_url", columnDefinition = "LONGTEXT")
     private String profilePictureUrl;
     private String email;
     private String password;

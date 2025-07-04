@@ -11,9 +11,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import tn.esprit.examen.entities.Admin;
 import tn.esprit.examen.entities.Candidate;
+import tn.esprit.examen.entities.Employer;
 import tn.esprit.examen.entities.PasswordResetToken;
+import tn.esprit.examen.repositories.AdminRepository;
 import tn.esprit.examen.repositories.CandidateRepository;
+import tn.esprit.examen.repositories.EmployerRepository;
 import tn.esprit.examen.repositories.PasswordResetTokenRepository;
 import tn.esprit.examen.services.EmailService;
 import tn.esprit.examen.services.GoogleService;
@@ -21,12 +26,10 @@ import tn.esprit.examen.services.UserDetailsServiceImpl;
 import tn.esprit.examen.springSecurity.JwtUtil;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @AllArgsConstructor
@@ -46,6 +49,9 @@ public class UserController {
     private PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailService emailService;
     private final GoogleService googleService;
+    private final EmployerRepository employerRepository;
+    private final AdminRepository adminRepository;
+
 
 
     /**
@@ -67,31 +73,62 @@ public class UserController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody Map<String, String> credentials) {
+        String email = credentials.get("email");
+        String password = credentials.get("password");
+
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(credentials.get("email"), credentials.get("password"))
+                    new UsernamePasswordAuthenticationToken(email, password)
             );
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
 
-        // Fetch user from DB
-        Candidate candidate = candidateRepository.findByEmail(credentials.get("email"))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // Candidate
+        Optional<Candidate> candidateOpt = candidateRepository.findByEmail(email);
+        if (candidateOpt.isPresent()) {
+            Candidate candidate = candidateOpt.get();
+            String jwt = jwtUtil.generateToken(candidate.getEmail(), "CANDIDATE", candidate.getUserId());
 
-        // Create JWT with username, role, and userId
-        final String jwt = jwtUtil.generateToken(
-                candidate.getEmail(),
-                "CANDIDATE",            // hardcoded role, or fetch dynamically if needed
-                candidate.getUserId()
-        );
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", jwt);
+            response.put("fullName", candidate.getFullName());
+            response.put("email", candidate.getEmail());
+            response.put("role", "CANDIDATE");
+            response.put("userId", candidate.getUserId());
+            return ResponseEntity.ok(response);
+        }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", jwt);
-        response.put("fullName", candidate.getFullName());
-        response.put("email", candidate.getEmail());
+        // Employer
+        Optional<Employer> employerOpt = employerRepository.findByEmail(email);
+        if (employerOpt.isPresent()) {
+            Employer employer = employerOpt.get();
+            String jwt = jwtUtil.generateToken(employer.getEmail(), "EMPLOYER", employer.getUserId());
 
-        return ResponseEntity.ok(response);
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", jwt);
+            response.put("fullName", employer.getFullName());
+            response.put("email", employer.getEmail());
+            response.put("role", "EMPLOYER");
+            response.put("userId", employer.getUserId());
+            return ResponseEntity.ok(response);
+        }
+
+        // ✅ Admin
+        Admin admin = adminRepository.findByEmail(email);
+        if (admin != null) {
+            String jwt = jwtUtil.generateToken(admin.getEmail(), "ADMIN", admin.getUserId());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", jwt);
+            response.put("fullName", admin.getFullName());
+            response.put("email", admin.getEmail());
+            response.put("role", "ADMIN");
+            response.put("userId", admin.getUserId());
+            return ResponseEntity.ok(response);
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
     }
 
 
@@ -225,8 +262,30 @@ public class UserController {
         candidate.setPreferredJobTitle(updates.get("preferredJobTitle"));
         candidate.setEducationLevel(updates.get("educationLevel"));
 
-        candidateRepository.save(candidate);
+        candidateRepository.save(candidate); // ✅ Persist changes
+
         return ResponseEntity.ok(Collections.singletonMap("message", "Profile updated successfully"));
+    }
+
+
+
+    @PutMapping("/upload-profile-picture/{email}")
+    public ResponseEntity<?> uploadProfilePicture(@PathVariable String email, @RequestParam("file") MultipartFile file) {
+        Candidate candidate = candidateRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        try {
+            // Save image as base64 string or path if saving to filesystem
+            byte[] bytes = file.getBytes();
+            String base64Image = Base64.getEncoder().encodeToString(bytes);
+            candidate.setProfilePictureUrl("data:image/png;base64," + base64Image);
+
+            candidateRepository.save(candidate);
+
+            return ResponseEntity.ok(Collections.singletonMap("message", "Profile picture updated successfully"));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload image.");
+        }
     }
 
 

@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.validator.constraints.URL;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,6 +23,14 @@ public class Candidate extends User{
     private String educationLevel;
     private String currentPosition;
     private String preferredJobTitle;
+    @URL(message = "Invalid URL format")
+    private String portfolioUrl;
+    private String bio;
+    @URL(message = "Invalid LinkedIn URL")
+    private String linkedinUrl;
+    @URL(message = "Invalid LinkedIn URL")
+    private String githubUrl;
+
 
 
     // ✅ Ajoute ce constructeur personnalisé

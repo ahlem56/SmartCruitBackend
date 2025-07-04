@@ -1,5 +1,6 @@
 package tn.esprit.examen.controllers;
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +17,7 @@ public class JobOfferController {
     private JobOfferService jobOfferService;
 
     @PostMapping("/create")
-    public ResponseEntity<JobOffer> create(@RequestBody JobOffer jobOffer) {
+    public ResponseEntity<JobOffer> create(@Valid @RequestBody JobOffer jobOffer) {
         return ResponseEntity.ok(jobOfferService.create(jobOffer));
     }
 
@@ -37,4 +38,14 @@ public class JobOfferController {
         jobOfferService.delete(id);
         return ResponseEntity.ok().build();
     }
+    @PutMapping("/update/{id}")
+    public ResponseEntity<JobOffer> update(@PathVariable Long id, @RequestBody JobOffer updatedOffer) {
+        return jobOfferService.getById(id)
+                .map(existing -> {
+                    updatedOffer.setJobOfferId(existing.getJobOfferId());
+                    return ResponseEntity.ok(jobOfferService.create(updatedOffer));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 }

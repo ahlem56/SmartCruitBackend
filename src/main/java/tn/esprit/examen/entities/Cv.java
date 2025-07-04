@@ -1,5 +1,6 @@
 package tn.esprit.examen.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,6 +19,7 @@ public class Cv {
     @Id
     @GeneratedValue
     private Long CvId;
+    private String cvUrl;
 
     private String education;
     private String experience;
@@ -27,6 +29,7 @@ public class Cv {
     private List<String> extractedSkills;
 
     @OneToOne
+    @JsonIgnore
     private Application application;
 
     @ManyToOne

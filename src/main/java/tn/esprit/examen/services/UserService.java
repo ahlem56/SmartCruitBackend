@@ -7,5 +7,5 @@ import org.springframework.stereotype.Service;
 @Service
 @AllArgsConstructor
 @Slf4j
-public class UserService {
+public class UserService implements IUserService {
 }
