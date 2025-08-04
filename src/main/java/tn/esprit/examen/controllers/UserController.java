@@ -1,6 +1,7 @@
 package tn.esprit.examen.controllers;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tn.esprit.examen.entities.Admin;
@@ -25,6 +27,7 @@ import tn.esprit.examen.services.GoogleService;
 import tn.esprit.examen.services.UserDetailsServiceImpl;
 import tn.esprit.examen.springSecurity.JwtUtil;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -58,16 +61,24 @@ public class UserController {
      * Candidate Signup (only candidates can register)
      */
     @PostMapping("/signup")
-    public ResponseEntity<?> registerCandidate(@RequestBody Candidate candidate) {
+    public ResponseEntity<?> registerCandidate(@Valid @RequestBody Candidate candidate, BindingResult result) {
+        if (result.hasErrors()) {
+            // Extract and return error messages
+            List<String> errors = result.getFieldErrors().stream()
+                    .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                    .toList();
+            return ResponseEntity.badRequest().body(errors);
+        }
+
         if (candidateRepository.findByEmail(candidate.getEmail()).isPresent()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email is already registered.");
         }
 
         candidate.setPassword(passwordEncoder.encode(candidate.getPassword()));
         candidate.setCreatedAt(LocalDate.now());
+
         return ResponseEntity.ok(candidateRepository.save(candidate));
     }
-
     /**
      * User Login (Candidate authentication)
      */
@@ -96,6 +107,7 @@ public class UserController {
             response.put("email", candidate.getEmail());
             response.put("role", "CANDIDATE");
             response.put("userId", candidate.getUserId());
+            response.put("profilePictureUrl", candidate.getProfilePictureUrl()); // ✅ Add this line
             return ResponseEntity.ok(response);
         }
 
@@ -111,6 +123,8 @@ public class UserController {
             response.put("email", employer.getEmail());
             response.put("role", "EMPLOYER");
             response.put("userId", employer.getUserId());
+            response.put("profilePictureUrl", employer.getProfilePictureUrl()); // ✅ Add this line
+
             return ResponseEntity.ok(response);
         }
 
@@ -125,6 +139,8 @@ public class UserController {
             response.put("email", admin.getEmail());
             response.put("role", "ADMIN");
             response.put("userId", admin.getUserId());
+            response.put("profilePictureUrl", admin.getProfilePictureUrl()); // ✅ Add this line
+
             return ResponseEntity.ok(response);
         }
 
@@ -240,53 +256,156 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid Facebook token");
         }
     }
-
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String token) {
         String jwt = token.replace("Bearer ", "");
         String email = jwtUtil.extractUsername(jwt);
 
-        Candidate candidate = candidateRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // Candidate
+        Optional<Candidate> candidateOpt = candidateRepository.findByEmail(email);
+        if (candidateOpt.isPresent()) {
+            return ResponseEntity.ok(candidateOpt.get());
+        }
 
-        return ResponseEntity.ok(candidate);
+        // Employer
+        Optional<Employer> employerOpt = employerRepository.findByEmail(email);
+        if (employerOpt.isPresent()) {
+            return ResponseEntity.ok(employerOpt.get());
+        }
+
+        // ✅ Admin
+        Optional<Admin> adminOpt = Optional.ofNullable(adminRepository.findByEmail(email));
+        if (adminOpt.isPresent()) {
+            return ResponseEntity.ok(adminOpt.get());
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
     }
 
 
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/update-profile/{email}")
     public ResponseEntity<?> updateProfile(@PathVariable String email, @RequestBody Map<String, String> updates) {
-        Candidate candidate = candidateRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Candidate not found"));
+        // Try Candidate
+        Optional<Candidate> candidateOpt = candidateRepository.findByEmail(email);
+        if (candidateOpt.isPresent()) {
+            Candidate candidate = candidateOpt.get();
 
-        candidate.setCurrentPosition(updates.get("currentPosition"));
-        candidate.setPreferredJobTitle(updates.get("preferredJobTitle"));
-        candidate.setEducationLevel(updates.get("educationLevel"));
+            Optional.ofNullable(updates.get("currentPosition")).ifPresent(candidate::setCurrentPosition);
+            Optional.ofNullable(updates.get("preferredJobTitle")).ifPresent(candidate::setPreferredJobTitle);
+            Optional.ofNullable(updates.get("educationLevel")).ifPresent(candidate::setEducationLevel);
+            Optional.ofNullable(updates.get("bio")).ifPresent(candidate::setBio);
+            Optional.ofNullable(updates.get("linkedinUrl")).ifPresent(candidate::setLinkedinUrl);
+            Optional.ofNullable(updates.get("githubUrl")).ifPresent(candidate::setGithubUrl);
+            Optional.ofNullable(updates.get("portfolioUrl")).ifPresent(candidate::setPortfolioUrl);
+            Optional.ofNullable(updates.get("fullName")).ifPresent(candidate::setFullName); // for Candidate
 
-        candidateRepository.save(candidate); // ✅ Persist changes
+            candidateRepository.save(candidate);
+            return ResponseEntity.ok(Map.of("message", "Candidate profile updated successfully"));
+        }
 
-        return ResponseEntity.ok(Collections.singletonMap("message", "Profile updated successfully"));
+        // Try Employer
+        Optional<Employer> employerOpt = employerRepository.findByEmail(email);
+        if (employerOpt.isPresent()) {
+            Employer employer = employerOpt.get();
+
+
+            Optional.ofNullable(updates.get("industry")).ifPresent(employer::setIndustry);
+            Optional.ofNullable(updates.get("linkedInUrl")).ifPresent(employer::setLinkedInUrl);
+            Optional.ofNullable(updates.get("githubUrl")).ifPresent(employer::setGithubUrl);
+            Optional.ofNullable(updates.get("fullName")).ifPresent(employer::setFullName); // for Employer
+
+            employerRepository.save(employer);
+            return ResponseEntity.ok(Map.of("message", "Employer profile updated successfully"));
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
     }
 
 
 
     @PutMapping("/upload-profile-picture/{email}")
     public ResponseEntity<?> uploadProfilePicture(@PathVariable String email, @RequestParam("file") MultipartFile file) {
-        Candidate candidate = candidateRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
         try {
-            // Save image as base64 string or path if saving to filesystem
             byte[] bytes = file.getBytes();
-            String base64Image = Base64.getEncoder().encodeToString(bytes);
-            candidate.setProfilePictureUrl("data:image/png;base64," + base64Image);
+            String base64Image = "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
 
-            candidateRepository.save(candidate);
+            // Try Candidate
+            Optional<Candidate> candidateOpt = candidateRepository.findByEmail(email);
+            if (candidateOpt.isPresent()) {
+                Candidate candidate = candidateOpt.get();
+                candidate.setProfilePictureUrl(base64Image);
+                candidateRepository.save(candidate);
+                return ResponseEntity.ok(candidate); // ✅ return full candidate object
+            }
 
-            return ResponseEntity.ok(Collections.singletonMap("message", "Profile picture updated successfully"));
+            // Try Employer
+            Optional<Employer> employerOpt = employerRepository.findByEmail(email);
+            if (employerOpt.isPresent()) {
+                Employer employer = employerOpt.get();
+                employer.setProfilePictureUrl(base64Image);
+                employerRepository.save(employer);
+                return ResponseEntity.ok(employer); // ✅ return full employer object
+            }
+
+            // Try Admin
+            Optional<Admin> adminOpt = Optional.ofNullable(adminRepository.findByEmail(email));
+            if (adminOpt.isPresent()) {
+                Admin admin = adminOpt.get();
+                admin.setProfilePictureUrl(base64Image);
+                adminRepository.save(admin);
+                return ResponseEntity.ok(admin); // ✅ return full admin object
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload image.");
         }
     }
 
+
+    @PutMapping("/update-credentials/{email}")
+    public ResponseEntity<?> updateCredentials(@PathVariable String email, @RequestBody Map<String, String> updates) {
+        Candidate candidate = candidateRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Candidate not found"));
+
+        if (updates.containsKey("email")) {
+            candidate.setEmail(updates.get("email"));
+        }
+        if (updates.containsKey("password")) {
+            String newPassword = updates.get("password");
+            if (newPassword != null && newPassword.length() >= 6) {
+                candidate.setPassword(passwordEncoder.encode(newPassword));
+            }
+        }
+
+        candidateRepository.save(candidate);
+        return ResponseEntity.ok(Map.of("message", "Credentials updated successfully"));
+    }
+
+
+    @GetMapping("/user/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+        // Try candidate first
+        Optional<Candidate> candidateOpt = candidateRepository.findById(id);
+        if (candidateOpt.isPresent()) {
+            return ResponseEntity.ok(candidateOpt.get());
+        }
+
+        // Try employer
+        Optional<Employer> employerOpt = employerRepository.findById(id);
+        if (employerOpt.isPresent()) {
+            return ResponseEntity.ok(employerOpt.get());
+        }
+
+        // Try admin
+        Optional<Admin> adminOpt = Optional.ofNullable(adminRepository.findById(id).orElse(null));
+        if (adminOpt.isPresent()) {
+            return ResponseEntity.ok(adminOpt.get());
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+    }
 
 }

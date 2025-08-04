@@ -16,11 +16,14 @@ public class Matching {
     private Long id;
 
     private Float score;
+    @Column(length = 2000)
+    private String feedback; // For example: a comma-separated string of missing skills
 
     @ManyToOne
     private JobOffer jobOffer;
 
-    @OneToMany
+    @OneToMany(mappedBy = "matching")
     private List<Cv> cvs;
+
 
 }

@@ -19,7 +19,8 @@ import java.util.List;
 public class Employer extends User{
 
 
-    private String contact;
+    private String linkedInUrl;
+    private String githubUrl;
     private String industry;
 
     public Employer(String fullName, String email, String password) {

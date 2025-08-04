@@ -3,6 +3,7 @@ package tn.esprit.examen.entities;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -23,6 +24,11 @@ public class JobOffer {
 
     @NotBlank(message = "Title is mandatory")
     private String title;
+
+
+    @Enumerated(EnumType.STRING)
+    private JobCategory category;
+
 
     @NotBlank(message = "Description is mandatory")
     @Column(length = 2000)
@@ -87,4 +93,11 @@ public class JobOffer {
     @OneToMany(mappedBy = "jobOffer", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Application> applications;
+
+
+    @Transient
+    @JsonProperty("applicationsCount")
+    public int getApplicationsCount() {
+        return applications != null ? applications.size() : 0;
+    }
 }

@@ -25,6 +25,7 @@ public class Candidate extends User{
     private String preferredJobTitle;
     @URL(message = "Invalid URL format")
     private String portfolioUrl;
+    @Column(length = 1000)
     private String bio;
     @URL(message = "Invalid LinkedIn URL")
     private String linkedinUrl;

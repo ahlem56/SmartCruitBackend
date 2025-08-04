@@ -1,9 +1,12 @@
 package tn.esprit.examen.controllers;
+
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.examen.entities.Admin;
+import tn.esprit.examen.entities.AdminDashboardStatsDto;
+import tn.esprit.examen.entities.UserEngagementStatsDto;
 import tn.esprit.examen.services.AdminService;
-import tn.esprit.examen.services.IAdminService;
 
 import java.util.List;
 
@@ -37,5 +40,20 @@ public class AdminController {
     @DeleteMapping("/delete/{id}")
     public void deleteAdmin(@PathVariable Long id) {
         adminService.deleteAdmin(id);
+    }
+
+    @GetMapping("/dashboard/overview")
+    public AdminDashboardStatsDto getDashboardOverview() {
+        return adminService.getDashboardStats();
+    }
+
+
+    @GetMapping("/dashboard/engagement")
+    public UserEngagementStatsDto getUserEngagementStats() {
+        return new UserEngagementStatsDto(
+                adminService.getTopCandidates(5),  // List<UserRankDto>
+                adminService.getTopEmployers(5),  // List<UserRankDto>
+                adminService.getTopCompanies(5)   // List<CompanyRankDto>
+        );
     }
 }

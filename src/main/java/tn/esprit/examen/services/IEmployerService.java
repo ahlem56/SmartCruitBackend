@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface IEmployerService {
-    Employer createEmployer(Employer employer, String companyName, String companyWebsite);
+    public Employer createEmployer(Employer employer, Long companyId);
     List<Employer> getAllEmployers();
     Optional<Employer> getEmployerById(Long id);
     Employer updateEmployer(Long id, Employer updated);

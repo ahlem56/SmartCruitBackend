@@ -20,9 +20,19 @@ public class CvService implements ICvService {
     public String uploadCvToCloudinary(MultipartFile file) throws IOException {
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
                 ObjectUtils.asMap(
-                        "resource_type", "auto",
-                        "folder", "cv_storage"  // nom du dossier dans Cloudinary
+                        "resource_type", "raw", // ✅ necessary for proper PDF treatment
+                        "type", "upload",
+                        "folder", "cv_storage",
+                        "use_filename", true,
+                        "unique_filename", true
                 ));
-        return (String) uploadResult.get("secure_url");  // Lien du fichier
+
+
+
+        log.info("📤 Cloudinary upload result: {}", uploadResult);
+        return (String) uploadResult.get("secure_url");
     }
+
+
+
 }

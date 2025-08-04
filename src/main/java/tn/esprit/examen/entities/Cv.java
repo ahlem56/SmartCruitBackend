@@ -1,6 +1,7 @@
 package tn.esprit.examen.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,7 +19,7 @@ import java.util.List;
 public class Cv {
     @Id
     @GeneratedValue
-    private Long CvId;
+    private Long cvId;
     private String cvUrl;
 
     private String education;
@@ -32,6 +33,8 @@ public class Cv {
     @JsonIgnore
     private Application application;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER) // <-- force fetch
+    @JsonIgnoreProperties({"cvs", "jobOffer"}) // avoid infinite loop
     private Matching matching;
+
 }
