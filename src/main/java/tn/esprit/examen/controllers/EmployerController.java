@@ -48,13 +48,11 @@ public class EmployerController {
         }
     }
 
-    @PreAuthorize("isAuthenticated()")
     @GetMapping("/getAll")
     public List<Employer> getAllEmployers() {
         return employerService.getAllEmployers();
     }
 
-    @PreAuthorize("isAuthenticated()")
     @GetMapping("/get/{id}")
     public ResponseEntity<?> getEmployerById(@PathVariable Long id) {
         return employerService.getEmployerById(id)
@@ -89,7 +87,6 @@ public class EmployerController {
     }
 
 
-    @PreAuthorize("isAuthenticated()")
     @GetMapping("/dashboard/funnel/{employerId}")
     public ResponseEntity<Map<String, Long>> getFunnelData(@PathVariable Long employerId) {
         return ResponseEntity.ok(dashboardService.getFunnelStats(employerId));

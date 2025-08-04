@@ -4,7 +4,7 @@ package tn.esprit.examen.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.boot.autoconfigure.batch.BatchProperties;
-
+import org.springframework.beans.factory.annotation.Value;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,6 +28,7 @@ public class Application {
     private String phone;
     @Column(length = 2000)
     private String coverLetter;
+
 
     @ManyToOne
     private Candidate candidate;

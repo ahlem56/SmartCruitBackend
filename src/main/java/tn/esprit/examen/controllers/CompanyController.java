@@ -43,7 +43,6 @@ public class CompanyController {
         return companyService.getCompanyById(id);
     }
 
-    @PreAuthorize("isAuthenticated()")
     @GetMapping("/getAll")
     public List<Company> getAllCompanies() {
         return companyService.getAllCompanies();

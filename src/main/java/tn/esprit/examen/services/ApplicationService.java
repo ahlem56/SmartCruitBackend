@@ -2,9 +2,11 @@ package tn.esprit.examen.services;
 
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,7 +23,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class ApplicationService implements IApplicationService {
     private final ApplicationRepository applicationRepository;
@@ -33,6 +35,8 @@ public class ApplicationService implements IApplicationService {
     private final NotificationService notificationService;
     private final EmployerRepository employerRepository;
     private final MatchingRepository matchingRepository;
+    @Value("${youtube.api.key}")
+    private String youtubeApiKey;
 
     public Application create(Application application) {
         application.setAppliedAt(LocalDateTime.now());
@@ -66,43 +70,44 @@ public class ApplicationService implements IApplicationService {
             String coverLetter
     ) throws IOException {
 
+        // ✅ Fetch candidate and job offer
         Candidate candidate = candidateRepository.findById(candidateId)
-                .orElseThrow(() -> new RuntimeException("Candidat non trouvé"));
-
+                .orElseThrow(() -> new RuntimeException("Candidate not found"));
         JobOffer jobOffer = jobOfferRepository.findById(jobOfferId)
-                .orElseThrow(() -> new RuntimeException("Offre non trouvée"));
+                .orElseThrow(() -> new RuntimeException("Job offer not found"));
 
         // ✅ Upload CV to Cloudinary
         String uploadedCvUrl = cvService.uploadCvToCloudinary(cvFile);
 
         // ✅ Create application
-        Application app = new Application();
-        app.setCandidate(candidate);
-        app.setJobOffer(jobOffer);
-        app.setAppliedAt(LocalDateTime.now());
-        app.setApplicationStatus(ApplicationStatus.SUBMITTED);
-        app.setFirstName(firstName);
-        app.setLastName(lastName);
-        app.setEmail(email);
-        app.setPhone(phone);
-        app.setCoverLetter(coverLetter);
+        Application application = new Application();
+        application.setCandidate(candidate);
+        application.setJobOffer(jobOffer);
+        application.setAppliedAt(LocalDateTime.now());
+        application.setApplicationStatus(ApplicationStatus.SUBMITTED);
+        application.setFirstName(firstName);
+        application.setLastName(lastName);
+        application.setEmail(email);
+        application.setPhone(phone);
+        application.setCoverLetter(coverLetter);
 
-        // ✅ Create and save CV
+        // ✅ Create and link CV
         Cv cv = new Cv();
         cv.setCvUrl(uploadedCvUrl);
-        cv.setApplication(app); // link to application
+        cv.setApplication(application);
         Cv savedCv = cvRepository.save(cv);
-        app.setCv(savedCv);
+        application.setCv(savedCv);
 
-        // ✅ Extract CV text and build AI inputs
+        // ✅ Extract CV text and prepare job text
         String cvText = extractTextFromPdf(cvFile.getInputStream());
-        String jobText = jobOffer.getDescription() + " "
-                + String.join(" ", jobOffer.getRequiredSkills()) + " "
-                + jobOffer.getEducationLevel().name();
+        String jobText = jobOffer.getDescription() + " " +
+                String.join(" ", jobOffer.getRequiredSkills()) + " " +
+                jobOffer.getEducationLevel().name();
 
-        log.info("📄 Extracted CV: \n" + cvText);
-        log.info("📄 Job Text: \n" + jobText);
+        log.info("📄 Extracted CV text:\n{}", cvText);
+        log.info("📄 Combined job text:\n{}", jobText);
 
+        // ✅ Get AI feedback (match score + missing skills)
         Map<String, Object> feedback = getMatchFeedback(
                 jobOffer.getDescription(),
                 String.join(" ", jobOffer.getRequiredSkills()),
@@ -112,7 +117,7 @@ public class ApplicationService implements IApplicationService {
         float aiScore = ((Number) feedback.get("confidence")).floatValue();
         List<String> missingSkills = (List<String>) feedback.get("missing_skills");
 
-        // ✅ Save matching
+        // ✅ Save matching data
         Matching matching = new Matching();
         matching.setScore(aiScore);
         matching.setJobOffer(jobOffer);
@@ -122,15 +127,20 @@ public class ApplicationService implements IApplicationService {
         savedCv.setMatching(matching);
         cvRepository.save(savedCv);
 
-        // ✅ Compose full response (for popup)
+        // ✅ Get skill-based course suggestions (YouTube)
+        List<Map<String, String>> suggestedCourses = getFreeCoursesForSkills(missingSkills, youtubeApiKey);
+
+        // ✅ Prepare response payload
         Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("application", applicationRepository.save(app));
+        responseMap.put("application", applicationRepository.save(application));
         responseMap.put("score", aiScore);
         responseMap.put("missingSkills", missingSkills);
+        responseMap.put("suggestedCourses", suggestedCourses);
         responseMap.put("suggestedJobs", suggestJobsFromCv(cvFile));
 
         return responseMap;
     }
+
 
     public List<Application> getApplicationsByJobOffer(Long jobOfferId) {
         return applicationRepository.findByJobOffer_JobOfferId(jobOfferId);
@@ -319,5 +329,45 @@ public class ApplicationService implements IApplicationService {
         return suggestions.subList(0, Math.min(3, suggestions.size()));
     }
 
+
+
+    public List<Map<String, String>> getFreeCoursesForSkills(List<String> missingSkills, String apiKey) {
+        List<Map<String, String>> courseSuggestions = new ArrayList<>();
+        RestTemplate restTemplate = new RestTemplate();
+
+        for (String skill : missingSkills) {
+            String query = "Free " + skill + " course";
+            String url = "https://www.googleapis.com/youtube/v3/search"
+                    + "?part=snippet"
+                    + "&q=" + query.replace(" ", "%20")
+                    + "&type=video"
+                    + "&maxResults=1"
+                    + "&key=" + apiKey;
+
+            try {
+                Map response = restTemplate.getForObject(url, Map.class);
+                List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
+
+                if (!items.isEmpty()) {
+                    Map<String, Object> video = items.get(0);
+                    Map<String, Object> id = (Map<String, Object>) video.get("id");
+                    Map<String, Object> snippet = (Map<String, Object>) video.get("snippet");
+
+                    Map<String, String> course = new HashMap<>();
+                    course.put("skill", skill);
+                    course.put("title", (String) snippet.get("title"));
+                    course.put("url", "https://www.youtube.com/watch?v=" + id.get("videoId"));
+                    course.put("videoId", (String) id.get("videoId"));  // 👈 This enables thumbnail preview
+
+
+                    courseSuggestions.add(course);
+                }
+            } catch (Exception e) {
+                System.out.println("Error fetching course for skill: " + skill);
+            }
+        }
+
+        return courseSuggestions;
+    }
 
 }
