@@ -45,6 +45,11 @@ public interface JobOfferRepository extends JpaRepository<JobOffer,Long> {
     @Query("SELECT COUNT(j) FROM JobOffer j WHERE j.employer.userId = :employerId AND j.status = :status")
     Long countByEmployerAndStatus(@Param("employerId") Long employerId, @Param("status") JobStatus status);
 
+    boolean existsByJobOfferIdAndEmployer_UserId(Long jobOfferId, Long employerId);
+
+
+    @Query("SELECT j.title FROM JobOffer j WHERE j.jobOfferId = :jobId")
+    String findJobTitleById(@Param("jobId") Long jobId);
 }
 
 

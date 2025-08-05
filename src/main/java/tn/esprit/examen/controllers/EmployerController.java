@@ -5,6 +5,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.examen.entities.Employer;
+import tn.esprit.examen.entities.JobViews;
+import tn.esprit.examen.services.AnalyticsService;
 import tn.esprit.examen.services.EmployerDashboardService;
 import tn.esprit.examen.services.IEmployerService;
 
@@ -128,5 +130,11 @@ public class EmployerController {
     public ResponseEntity<List<Map<String, Object>>> getTopMatches(@PathVariable Long employerId) {
         return ResponseEntity.ok(dashboardService.getTopMatches(employerId));
     }
+
+    @GetMapping("/jobAdPerformance/{employerId}")
+    public ResponseEntity<List<JobViews>> getJobAdPerformance(@PathVariable Long employerId) {
+        return ResponseEntity.ok(dashboardService.getJobAdPerformance(employerId));
+    }
+
 
 }

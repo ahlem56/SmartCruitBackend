@@ -6,13 +6,12 @@ import org.springframework.stereotype.Service;
 import tn.esprit.examen.entities.ApplicationStatus;
 import tn.esprit.examen.entities.Candidate;
 import tn.esprit.examen.entities.JobStatus;
+import tn.esprit.examen.entities.JobViews;
 import tn.esprit.examen.repositories.*;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @AllArgsConstructor
@@ -24,6 +23,7 @@ public class EmployerDashboardService {
     private final InterviewRepository interviewRepository;
     private final MatchingRepository matchingRepository;
     private final JobOfferRepository jobOfferRepository;
+    private final AnalyticsService analyticsService;
 
 
     public Map<String, Long> getNewApplicationsStats(Long employerId) {
@@ -123,6 +123,41 @@ public class EmployerDashboardService {
     public List<Map<String, Object>> getTopMatches(Long employerId) {
         return matchingRepository.findTopMatchesForEmployer(employerId);
     }
+    public List<JobViews> getJobAdPerformance(Long employerId) {
+        try {
+            // Step 1: Fetch from both sources
+            List<JobViews> pastViews = analyticsService.fetchJobOfferViews();         // standard API
+            List<JobViews> realtimeViews = analyticsService.fetchRealtimeViews();     // <-- you'll implement this
+
+            // Step 2: Merge view counts
+            Map<Long, Integer> totalViews = new HashMap<>();
+            for (JobViews view : pastViews) {
+                totalViews.put(view.getJobId(), view.getViews());
+            }
+            for (JobViews view : realtimeViews) {
+                totalViews.merge(view.getJobId(), view.getViews(), Integer::sum);
+            }
+
+            // Step 3: Filter by employer and attach titles
+            List<JobViews> finalList = new ArrayList<>();
+            for (Map.Entry<Long, Integer> entry : totalViews.entrySet()) {
+                Long jobId = entry.getKey();
+                if (jobOfferRepository.existsByJobOfferIdAndEmployer_UserId(jobId, employerId)) {
+                    String title = jobOfferRepository.findJobTitleById(jobId);
+                    JobViews view = new JobViews(jobId, entry.getValue());
+                    view.setTitle(title);
+                    finalList.add(view);
+                }
+            }
+
+            return finalList;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return List.of(); // fallback
+        }
+    }
+
 
 
 }
