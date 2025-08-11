@@ -28,5 +28,7 @@ public class AdminDashboardStatsDto {
     private long newApplications30d;
 
     private long totalCompanies;
+    private long totalCandidates;
+    private long totalEmployers;
 
 }

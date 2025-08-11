@@ -1,6 +1,7 @@
 package tn.esprit.examen.controllers;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.examen.entities.Admin;
@@ -9,6 +10,7 @@ import tn.esprit.examen.entities.UserEngagementStatsDto;
 import tn.esprit.examen.services.AdminService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -56,4 +58,18 @@ public class AdminController {
                 adminService.getTopCompanies(5)   // List<CompanyRankDto>
         );
     }
+
+
+    @GetMapping("/dashboard/topMatchesGlobal")
+    public ResponseEntity<List<Map<String, Object>>> getTopMatchesGlobal() {
+        return ResponseEntity.ok(adminService.getTopMatchesGlobal());
+    }
+
+    @GetMapping("/dashboard/topCategories")
+    public ResponseEntity<List<Map<String, Object>>> getTopCategories() {
+        return ResponseEntity.ok(adminService.getTopCategories());
+    }
+
+
+
 }

@@ -195,28 +195,61 @@ public class UserController {
 
     @PostMapping("/google-login")
     public ResponseEntity<?> loginWithGoogle(@RequestBody Map<String, String> body) {
-        String idToken = body.get("idToken"); // ✅ correct !
-
+        String idToken = body.get("idToken");
         try {
-            // Appel de l’API Google pour vérifier le token
-            GoogleIdToken.Payload payload = googleService.verifyAccessToken(idToken);
+            var jws = googleService.verifyIdToken(idToken);
+            var payload = jws.getPayload();
 
-            String email = payload.getEmail();
+            String email = (String) payload.get("email");
+
+            Object ev = payload.get("email_verified");
+            if (ev == null) ev = payload.get("emailVerified");
+            boolean emailVerified = (ev instanceof Boolean) ? (Boolean) ev
+                    : "true".equalsIgnoreCase(String.valueOf(ev));
+            if (!emailVerified) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Google email not verified");
+            }
+
             Candidate candidate = candidateRepository.findByEmail(email)
-                    .orElseGet(() -> candidateRepository.save(new Candidate(email))); // ou créer un user
+                    .orElseGet(() -> {
+                        Candidate c = new Candidate();
+                        c.setEmail(email);
+                        c.setCreatedAt(LocalDate.now());
+
+                        Object name = payload.get("name");
+                        if (name != null) c.setFullName(name.toString());
+                        Object picture = payload.get("picture");
+                        if (picture != null) c.setProfilePictureUrl(picture.toString());
+
+                        // ✅ satisfy @NotBlank/@NotNull constraints for first save
+                        c.setPassword(passwordEncoder.encode("GOOGLE_" + java.util.UUID.randomUUID()));
+                        // choose a policy you like; you can also leave null if your entity allows it
+                        c.setBirthDate(LocalDate.of(2000, 1, 1));
+
+                        return candidateRepository.save(c);
+                    });
 
             String jwt = jwtUtil.generateToken(email, "CANDIDATE", candidate.getUserId());
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("token", jwt);
-            response.put("fullName", candidate.getFullName());
-            response.put("email", candidate.getEmail());
-            return ResponseEntity.ok(response);
-
+            return ResponseEntity.ok(Map.of(
+                    "token", jwt,
+                    "fullName", candidate.getFullName(),
+                    "email", candidate.getEmail(),
+                    "role", "CANDIDATE",
+                    "userId", candidate.getUserId(),
+                    "profilePictureUrl", candidate.getProfilePictureUrl()
+            ));
+        } catch (com.google.auth.oauth2.TokenVerifier.VerificationException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid Google token: " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid Google token");
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Google login failed: " + e.getMessage());
         }
     }
+
+
     @PostMapping("/facebook-login")
     public ResponseEntity<?> loginWithFacebook(@RequestBody Map<String, String> body) {
         String authToken = body.get("authToken");
@@ -407,5 +440,48 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
     }
+
+
+    private static String b64(String s) {
+        return new String(java.util.Base64.getUrlDecoder().decode(s));
+    }
+
+    @PostMapping("/google-login-debug")
+    public ResponseEntity<?> debugGoogle(@RequestBody Map<String, String> body) {
+        String idToken = body.get("idToken");
+        String[] parts = idToken.split("\\.");
+        var payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+        System.out.println("JWT payload: " + payloadJson);
+
+        com.google.gson.JsonObject p = com.google.gson.JsonParser.parseString(payloadJson).getAsJsonObject();
+        long now = System.currentTimeMillis()/1000;
+        long iat = p.get("iat").getAsLong();
+        long exp = p.get("exp").getAsLong();
+        long nbf = p.has("nbf") ? p.get("nbf").getAsLong() : iat;
+
+        System.out.printf("now=%d, iat=%d (Δ=%d s), nbf=%d (Δ=%d s), exp=%d (Δ=%d s)%n",
+                now, iat, now-iat, nbf, now-nbf, exp, exp-now);
+
+        return ResponseEntity.ok(Map.of(
+                "now", now, "iat", iat, "delta_now_iat", now-iat,
+                "nbf", nbf, "delta_now_nbf", now-nbf, "exp", exp, "delta_exp_now", exp-now));
+    }
+    @GetMapping("/google-tokeninfo")
+    public ResponseEntity<?> tokenInfo(@RequestParam("id_token") String idToken) {
+        var rt = new org.springframework.web.client.RestTemplate();
+        var url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
+        var resp = rt.getForEntity(url, Map.class);
+        return ResponseEntity.status(resp.getStatusCode()).body(resp.getBody());
+    }
+    @GetMapping("/google-jwks-check")
+    public ResponseEntity<?> jwksCheck() throws Exception {
+        var transport = com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.newTrustedTransport();
+        var req = transport.createRequestFactory()
+                .buildGetRequest(new com.google.api.client.http.GenericUrl("https://www.googleapis.com/oauth2/v3/certs"));
+        var resp = req.execute();
+        return ResponseEntity.ok(Map.of("status", resp.getStatusCode(), "len", resp.getContentLoggingLimit()));
+    }
+
+
 
 }

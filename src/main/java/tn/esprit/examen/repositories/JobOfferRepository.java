@@ -50,6 +50,10 @@ public interface JobOfferRepository extends JpaRepository<JobOffer,Long> {
 
     @Query("SELECT j.title FROM JobOffer j WHERE j.jobOfferId = :jobId")
     String findJobTitleById(@Param("jobId") Long jobId);
+
+    @Query("SELECT j.category, COUNT(j) FROM JobOffer j GROUP BY j.category ORDER BY COUNT(j) DESC")
+    List<Object[]> findTopCategories();
+
 }
 
 

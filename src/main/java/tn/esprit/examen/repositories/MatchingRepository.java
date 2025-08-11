@@ -39,5 +39,24 @@ ORDER BY m.score DESC
 
     List<Map<String, Object>> findTopMatchesForEmployer(@Param("employerId") Long employerId);
 
+    @Query("""
+SELECT new map(
+    a.firstName as firstName,
+    a.lastName as lastName,
+    j.title as jobTitle,
+    m.score as score,
+    cv.cvUrl as cvUrl,
+    c.profilePictureUrl as profilePictureUrl
+)
+FROM Matching m
+JOIN m.jobOffer j
+JOIN m.cvs cv
+JOIN Application a ON a.cv = cv
+JOIN a.candidate c
+WHERE a.firstName IS NOT NULL
+ORDER BY m.score DESC
+""")
+    List<Map<String, Object>> findTopMatchesGlobal();
+
 
 }

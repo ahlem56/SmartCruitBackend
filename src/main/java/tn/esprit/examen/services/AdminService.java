@@ -9,6 +9,7 @@ import tn.esprit.examen.repositories.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -19,8 +20,10 @@ public class AdminService implements IAdminService {
     private final JobOfferRepository jobOfferRepository;
     private final CompanyRepository companyRepository;
     private final ApplicationRepository applicationRepository;
-    // Inject PasswordEncoder
+    private final MatchingRepository matchingRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CandidateRepository candidateRepository;
+    private final EmployerRepository employerRepository;
 
     @Override
     public Admin addAdmin(Admin admin) {
@@ -84,6 +87,9 @@ public class AdminService implements IAdminService {
                 .newApplications30d(applicationRepository.countByAppliedAtAfter(last30d))
 
                 .totalCompanies(companyRepository.count()) // ✅ added
+                .totalCandidates(candidateRepository.count())
+                .totalEmployers(employerRepository.count())
+
                 .build();
     }
 
@@ -125,5 +131,24 @@ public class AdminService implements IAdminService {
                 })
                 .toList();
     }
+
+    public List<Map<String, Object>> getTopMatchesGlobal() {
+        return matchingRepository.findTopMatchesGlobal();
+    }
+
+
+    public List<Map<String, Object>> getTopCategories() {
+        List<Object[]> result = jobOfferRepository.findTopCategories();
+        return result.stream()
+                .map(row -> {
+                    Map<String, Object> map = Map.of(
+                            "category", row[0].toString(),
+                            "count", ((Number) row[1]).intValue()
+                    );
+                    return map;
+                })
+                .toList();
+    }
+
 
 }
