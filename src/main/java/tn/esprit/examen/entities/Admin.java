@@ -10,7 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 public class Admin extends User {
 
-    private String role = "ADMIN"; // optional for clarity, could also be managed via enum/authority
+    private String role = "ADMIN";
 
     public Admin(String fullName, String email, String password) {
         setFullName(fullName);
