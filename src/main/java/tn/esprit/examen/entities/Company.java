@@ -19,25 +19,20 @@ public class Company {
     @Id
     @GeneratedValue
     private Long companyId;
-
     private String name;
     private String website;
     private String logoUrl;
     private String industry;
     private String description;
-
     private String address;
-
     private String contactEmail;
     private String contactPhone;
-
-
     private String linkedInUrl;
     private String twitterUrl;
     private String facebookUrl;
 
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL)
-    @JsonIgnore // Avoid recursion
+    @JsonIgnore
     private List<Employer> employers;
 
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL)

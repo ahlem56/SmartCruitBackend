@@ -14,7 +14,6 @@ public class Matching {
     @Id
     @GeneratedValue
     private Long id;
-
     private Float score;
     @Column(length = 2000)
     private String feedback; // For example: a comma-separated string of missing skills

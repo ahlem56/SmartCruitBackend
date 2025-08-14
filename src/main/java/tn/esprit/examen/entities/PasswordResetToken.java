@@ -13,7 +13,6 @@ public class PasswordResetToken {
     @Id
     @GeneratedValue
     private Long id;
-
     @Column(length = 255)
     private String token;
     private LocalDateTime expiryDate;

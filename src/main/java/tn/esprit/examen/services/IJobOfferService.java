@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface IJobOfferService {
-    public JobOffer create(JobOffer jobOffer) ;
-    public List<JobOffer> getAll() ;
-    public Optional<JobOffer> getById(Long id) ;
-    public void delete(Long id) ;
+    JobOffer create(JobOffer jobOffer) ;
+    List<JobOffer> getAll() ;
+    Optional<JobOffer> getById(Long id) ;
+    void delete(Long id) ;
 
     }

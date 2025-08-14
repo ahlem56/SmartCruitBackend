@@ -18,7 +18,6 @@ import java.util.List;
 
 public class Employer extends User{
 
-
     private String linkedInUrl;
     private String githubUrl;
     private String industry;

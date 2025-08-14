@@ -20,9 +20,7 @@ public class EmployerService implements IEmployerService {
     private final EmployerRepository employerRepository;
     private final CompanyRepository companyRepository;
 
-    /**
-     * Link employer to an existing company (by ID)
-     */
+
     @Override
     public Employer createEmployer(Employer employer, Long companyId) {
         Company company = companyRepository.findById(companyId)
@@ -68,7 +66,6 @@ public class EmployerService implements IEmployerService {
 
         Employer employer = optionalEmployer.get();
 
-        // Nullify job offer relationships to avoid FK violations
         employer.getJobOffers().forEach(offer -> {
             offer.setEmployer(null);
         });

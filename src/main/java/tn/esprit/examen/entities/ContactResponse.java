@@ -10,7 +10,6 @@ public class ContactResponse {
     private String profilePictureUrl;
 
 
-    // Getters and setters
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 

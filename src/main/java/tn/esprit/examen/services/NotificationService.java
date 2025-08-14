@@ -19,7 +19,7 @@ public class NotificationService {
     public void notifyUser(User recipient, User sender, String message) {
         Notification notification = new Notification();
         notification.setRecipient(recipient);
-        notification.setSender(sender); // ✅
+        notification.setSender(sender);
         notification.setMessage(message);
         notificationRepository.save(notification);
     }
@@ -32,7 +32,7 @@ public class NotificationService {
     public void markAsRead(Long notificationId) {
         Notification n = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Not found"));
-        n.setRead(true); // ✅ use setRead now
+        n.setRead(true);
         notificationRepository.save(n);
     }
 

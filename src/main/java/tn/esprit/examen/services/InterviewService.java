@@ -56,7 +56,6 @@ public class InterviewService {
         interview.setConfirmedDate(confirmedDate);
         interview.setStatus(InterviewStatus.CONFIRMED);
 
-        // ✅ ensure sender is managed Candidate entity
         Candidate candidate = candidateRepo.findById(interview.getCandidate().getUserId())
                 .orElseThrow(() -> new RuntimeException("Candidate not found"));
 
@@ -85,7 +84,6 @@ public class InterviewService {
         interview.setStatus(InterviewStatus.CANCELLED);
         interviewRepo.save(interview);
 
-        // ✅ Fetch sender from DB to ensure it's managed
         Employer employer = employerRepo.findById(interview.getEmployer().getUserId())
                 .orElseThrow(() -> new RuntimeException("Employer not found"));
 

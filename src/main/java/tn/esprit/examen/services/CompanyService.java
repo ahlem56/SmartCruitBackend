@@ -70,8 +70,8 @@ public class CompanyService implements ICompanyService {
         Map uploadResult = cloudinary.uploader().upload(logoFile.getBytes(),
                 ObjectUtils.asMap(
                         "resource_type", "image",
-                        "folder", "company_logos"  // Dossier dans Cloudinary
+                        "folder", "company_logos"
                 ));
-        return (String) uploadResult.get("secure_url");  // URL finale du logo
+        return (String) uploadResult.get("secure_url");
     }
 }

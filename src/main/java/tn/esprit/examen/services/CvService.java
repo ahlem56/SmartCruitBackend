@@ -20,7 +20,7 @@ public class CvService implements ICvService {
     public String uploadCvToCloudinary(MultipartFile file) throws IOException {
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
                 ObjectUtils.asMap(
-                        "resource_type", "raw", // ✅ necessary for proper PDF treatment
+                        "resource_type", "raw",
                         "type", "upload",
                         "folder", "cv_storage",
                         "use_filename", true,

@@ -70,16 +70,13 @@ public class ApplicationService implements IApplicationService {
             String coverLetter
     ) throws IOException {
 
-        // ✅ Fetch candidate and job offer
         Candidate candidate = candidateRepository.findById(candidateId)
                 .orElseThrow(() -> new RuntimeException("Candidate not found"));
         JobOffer jobOffer = jobOfferRepository.findById(jobOfferId)
                 .orElseThrow(() -> new RuntimeException("Job offer not found"));
 
-        // ✅ Upload CV to Cloudinary
         String uploadedCvUrl = cvService.uploadCvToCloudinary(cvFile);
 
-        // ✅ Create application
         Application application = new Application();
         application.setCandidate(candidate);
         application.setJobOffer(jobOffer);
@@ -91,14 +88,12 @@ public class ApplicationService implements IApplicationService {
         application.setPhone(phone);
         application.setCoverLetter(coverLetter);
 
-        // ✅ Create and link CV
         Cv cv = new Cv();
         cv.setCvUrl(uploadedCvUrl);
         cv.setApplication(application);
         Cv savedCv = cvRepository.save(cv);
         application.setCv(savedCv);
 
-        // ✅ Extract CV text and prepare job text
         String cvText = extractTextFromPdf(cvFile.getInputStream());
         String jobText = jobOffer.getDescription() + " " +
                 String.join(" ", jobOffer.getRequiredSkills()) + " " +
@@ -107,7 +102,6 @@ public class ApplicationService implements IApplicationService {
         log.info("📄 Extracted CV text:\n{}", cvText);
         log.info("📄 Combined job text:\n{}", jobText);
 
-        // ✅ Get AI feedback (match score + missing skills)
         Map<String, Object> feedback = getMatchFeedback(
                 jobOffer.getDescription(),
                 String.join(" ", jobOffer.getRequiredSkills()),
@@ -117,7 +111,6 @@ public class ApplicationService implements IApplicationService {
         float aiScore = ((Number) feedback.get("confidence")).floatValue();
         List<String> missingSkills = (List<String>) feedback.get("missing_skills");
 
-        // ✅ Save matching data
         Matching matching = new Matching();
         matching.setScore(aiScore);
         matching.setJobOffer(jobOffer);
@@ -127,10 +120,8 @@ public class ApplicationService implements IApplicationService {
         savedCv.setMatching(matching);
         cvRepository.save(savedCv);
 
-        // ✅ Get skill-based course suggestions (YouTube)
         List<Map<String, String>> suggestedCourses = getFreeCoursesForSkills(missingSkills, youtubeApiKey);
 
-        // ✅ Prepare response payload
         Map<String, Object> responseMap = new HashMap<>();
         responseMap.put("application", applicationRepository.save(application));
         responseMap.put("score", aiScore);
@@ -158,10 +149,8 @@ public class ApplicationService implements IApplicationService {
 
         JobOffer jobOffer = app.getJobOffer();
 
-        // Update status of the selected application
         app.setApplicationStatus(ApplicationStatus.ACCEPTED);
 
-        // Optional: Reject other applications if only one position is available
         if (jobOffer.getNumberOfOpenPositions() == 1) {
             List<Application> otherApplications = applicationRepository.findByJobOffer_JobOfferId(jobOffer.getJobOfferId());
             for (Application other : otherApplications) {
@@ -171,7 +160,6 @@ public class ApplicationService implements IApplicationService {
                 }
             }
 
-            // Auto-close the job
             jobOffer.setStatus(JobStatus.INACTIVE);
             jobOfferRepository.save(jobOffer);
         }
@@ -186,8 +174,7 @@ public class ApplicationService implements IApplicationService {
 
 
 
-        // TODO: Notify candidate (email/in-app)
-        // e.g. notificationService.sendAcceptanceEmail(app.getEmail(), jobOffer.getTitle());
+
         try {
             emailService.sendApplicationAcceptedEmail(
                     app.getEmail(),
@@ -214,7 +201,6 @@ public class ApplicationService implements IApplicationService {
 
         app.setApplicationStatus(ApplicationStatus.REJECTED);
 
-        // Optional: Notify candidate
         Employer employer = employerRepository.findById(app.getJobOffer().getEmployer().getUserId())
                 .orElseThrow(() -> new RuntimeException("Employer not found"));
 
@@ -266,7 +252,6 @@ public class ApplicationService implements IApplicationService {
             log.error("⚠️ Error while calling AI API: ", e);
         }
 
-        // Fallback
         Map<String, Object> fallback = new HashMap<>();
         fallback.put("confidence", 0f);
         fallback.put("missing_skills", List.of());
@@ -288,7 +273,6 @@ public class ApplicationService implements IApplicationService {
     public List<Map<String, Object>> suggestJobsFromCv(MultipartFile cvFile) throws IOException {
         String cvText = extractTextFromPdf(cvFile.getInputStream());
 
-        // Fetch all job offers
         List<JobOffer> jobOffers = jobOfferRepository.findAll();
 
         List<Map<String, Object>> suggestions = new ArrayList<>();
@@ -301,7 +285,6 @@ public class ApplicationService implements IApplicationService {
 
             float confidence = ((Number) feedback.get("confidence")).floatValue();
 
-            // Only keep basic job info (no scores/skills)
             Map<String, Object> matchResult = new HashMap<>();
             matchResult.put("jobId", job.getJobOfferId());
             matchResult.put("title", job.getTitle());
@@ -309,19 +292,15 @@ public class ApplicationService implements IApplicationService {
             matchResult.put("location", job.getJobLocation());
             matchResult.put("logoUrl", job.getCompany().getLogoUrl()); // ✅ required
 
-            // Use score only for ranking
             matchResult.put("score", confidence); // ⬅️ Temporary, will be removed before return
 
             suggestions.add(matchResult);
         }
-
-        // Sort by score descending (but don’t return it)
         suggestions.sort((a, b) -> Float.compare(
                 (float) b.get("score"),
                 (float) a.get("score")
         ));
 
-        // Remove score from final response
         for (Map<String, Object> s : suggestions) {
             s.remove("score");
         }

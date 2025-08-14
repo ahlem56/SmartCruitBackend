@@ -17,7 +17,6 @@ public class ChatMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long chatMessageId;
-
     private String senderId;
     private String recipientId;
     @Column(nullable = false, columnDefinition = "LONGTEXT")

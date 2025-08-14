@@ -20,7 +20,6 @@ public class GoogleService {
                 .build();
     }
 
-    // ✅ verify(...) returns JsonWebSignature
     public JsonWebSignature verifyIdToken(String idToken) throws VerificationException {
         return verifier.verify(idToken);
     }

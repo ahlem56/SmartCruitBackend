@@ -34,7 +34,6 @@ public class Candidate extends User{
 
 
 
-    // ✅ Ajoute ce constructeur personnalisé
     public Candidate(String email) {
         super();
         setEmail(email);           // méthode héritée de User

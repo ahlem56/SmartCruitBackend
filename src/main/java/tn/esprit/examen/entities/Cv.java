@@ -21,7 +21,6 @@ public class Cv {
     @GeneratedValue
     private Long cvId;
     private String cvUrl;
-
     private String education;
     private String experience;
     private String languages;

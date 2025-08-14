@@ -28,7 +28,7 @@ public class AdminService implements IAdminService {
     @Override
     public Admin addAdmin(Admin admin) {
         admin.setCreatedAt(LocalDate.now());
-        admin.setPassword(passwordEncoder.encode(admin.getPassword())); // ✅ Hash the password!
+        admin.setPassword(passwordEncoder.encode(admin.getPassword()));
         return adminRepository.save(admin);
     }
 
@@ -86,7 +86,7 @@ public class AdminService implements IAdminService {
                 .newJobs30d(jobOfferRepository.countByPostedDateAfter(last30d.toLocalDate()))
                 .newApplications30d(applicationRepository.countByAppliedAtAfter(last30d))
 
-                .totalCompanies(companyRepository.count()) // ✅ added
+                .totalCompanies(companyRepository.count())
                 .totalCandidates(candidateRepository.count())
                 .totalEmployers(employerRepository.count())
 

@@ -14,16 +14,11 @@ public class Interview {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long interviewId;
-
     private LocalDateTime proposedDate;
-
-    private LocalDateTime confirmedDate; // Optional, set when confirmed by candidate
-
+    private LocalDateTime confirmedDate;
     @Enumerated(EnumType.STRING)
     private InterviewStatus status = InterviewStatus.PENDING;
-
     private String location; // Or link if it's online
-
     private String notes;
 
     @ManyToOne

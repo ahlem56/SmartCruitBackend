@@ -15,14 +15,12 @@ public interface JobOfferRepository extends JpaRepository<JobOffer,Long> {
     long countByStatus(JobStatus status);
     long countByPostedDateAfter(LocalDate date);
 
-    // ✅ Return employer fullName, job count, and profile picture
     @Query("SELECT j.employer.fullName, COUNT(j) as jobCount, j.employer.profilePictureUrl " +
             "FROM JobOffer j " +
             "GROUP BY j.employer.fullName, j.employer.profilePictureUrl " +
             "ORDER BY jobCount DESC")
     List<Object[]> findTopEmployers(Pageable pageable);
 
-    // ✅ Return company name, job count, and logo URL
     @Query("SELECT j.company.name, COUNT(j) as jobCount, j.company.logoUrl " +
             "FROM JobOffer j " +
             "GROUP BY j.company.name, j.company.logoUrl " +
